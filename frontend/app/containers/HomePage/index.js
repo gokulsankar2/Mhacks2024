@@ -55,7 +55,22 @@ export function HomePage({
       }
     }
 
-    initCamera();
+    const button = document.createElement("button");
+
+    // Set the text content of the button
+    button.textContent = "Start recording";
+
+    // Add an event listener to handle clicks
+    button.addEventListener("click", function() {
+      // Code to execute when the button is clicked
+      alert("Button clicked!");
+      initCamera();
+    });
+
+    // Append the button to the document body
+    document.body.appendChild(button);
+
+   
 
     // Clean up function
     return () => {
