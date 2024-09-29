@@ -23,7 +23,7 @@ def blur_image(image, distance):
     max_kernel_size = 5000  # Increased maximum blur kernel size
     kernel_size = int(distance * 10) + 1  # Increase the multiplying factor to make it blurrier
     kernel_size = min(max_kernel_size, max(1, kernel_size if kernel_size % 2 else kernel_size + 1))
-    blurred_image = cv2.GaussianBlur(image, (kernel_size, kernel_size), 0)
+    blurred_image = cv2.GaussianBlur(image, (kernel_size, kernel_size), 0, borderType=cv2.BORDER_REPLICATE)
     return blurred_image
 
 @app.route('/', methods=['GET', 'POST'])
