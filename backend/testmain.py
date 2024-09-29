@@ -3,12 +3,102 @@ import cv2
 import numpy as np
 import os
 from dotenv import load_dotenv
+import google.generativeai as genai
+import shutil
+import asyncio
 import base64
 from io import BytesIO
 import random
 
 app = Flask(__name__)
 load_dotenv()
+
+class File:
+    def __init__(self, file_path: str, timestamp: str, display_name: str = None):
+        self.file_path = file_path
+        if display_name:
+            self.display_name = display_name
+        self.timestamp = timestamp
+    def set_response(self, response):
+       self.response = response
+from datetime import datetime
+class VideoGemini():
+    def __init__(self, verbose: bool = False, delete: bool = True):
+        #api key switching logic
+        
+
+        genai.configure(api_key=os.environ["API_KEY"])
+
+        self.model = genai.GenerativeModel(model_name="models/gemini-1.5-pro-latest")
+
+        self.frames = []
+
+        self.verbose = verbose
+
+        self.delete = delete
+
+        self.chat = self.model.start_chat(history=[])
+
+        
+        
+
+    def upload_frame(self, file: File):
+        if (self.verbose):
+            print(file.file_path)
+            print(f'Uploading: {file.file_path}...')
+        response = genai.upload_file(path=file.file_path)
+        file.set_response(response)
+        if (self.verbose):
+            print(f"Completed file upload")
+            if (self.delete):
+                print(f"Deleting local file at {file.file_path}")
+        if (self.delete):
+            os.remove(file.file_path)
+            file.file_path = ""
+        self.frames.append(file)
+
+    def _build_request(self, query:str = None):
+        request = []
+        if (query):
+            request.append(query)
+        for frame in self.frames:
+            request.append(frame.timestamp)
+            request.append(frame.response)
+        return request
+    
+    async def get_response_async(self):
+        request = self._build_request()
+        resp = self.chat.send_message(request)
+        print(resp.text)
+    
+    def get_response(self, query:str = None):
+        if (self.calls_this_min >= 2):
+            api_key_idx += 1
+            api_key_idx = api_key_idx % len(self.api_keys)
+            self.calls_this_min = 0
+        self.calls_this_min += 1
+            
+        # Make the LLM request.
+        request = self._build_request(query)
+        response = ""
+        response = self.chat.send_message(request)
+        return response
+
+    def _delete_frames(self):
+        if (self.verbose):
+            print(f'Deleting {len(self.frames)} images. This might take a bit...')
+        for frame in self.frames:
+            print("here")
+            genai.delete_file(frame.response.name)
+            print('here2')
+            if (self.verbose):
+                print(f'Deleted {frame.file_path} at URI {frame.response.uri}')
+        if (self.verbose):
+            print(f"Completed deleting files!\n\nDeleted: {len(self.frames)} files")
+
+    def __del__(self):
+        self._delete_frames()
+
 
 def analyze_distance(image):
     myopia_levels = [
