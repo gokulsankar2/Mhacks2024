@@ -116,6 +116,25 @@ def blur_image(image, distance):
     blurred_image = cv2.GaussianBlur(image, (kernel_size, kernel_size), 0, borderType=cv2.BORDER_REPLICATE)
     return blurred_image
 
+def analyze_distance_gemini(image):
+    # Define the prompt for Gemini
+    prompt = "Analyze this image and determine the distance of the person from the screen."
+
+    # Convert the image to a format that Gemini can process (e.g., base64)
+    _, buffer = cv2.imencode('.jpg', image)
+    image_base64 = base64.b64encode(buffer).decode('utf-8')
+
+    # Send the prompt and image to Gemini for analysis
+    response = gemini_api.analyze_image(prompt, image_base64)
+
+    # Extract the distance value from the response
+    distance = response.get('distance', None)
+    if distance is None:
+        raise ValueError("Failed to get distance from Gemini response")
+
+    return distance
+
+
 @app.route('/', methods=['GET', 'POST'])
 def home():
     if request.method == 'POST':
