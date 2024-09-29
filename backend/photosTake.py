@@ -1,16 +1,26 @@
-from flask import Flask, request, jsonify
-from flask_cors import CORS
 import os
-import requests  # For making requests to the Gemini API
+from quart import Quart, request, jsonify
+from quart_cors import cors
+import google.generativeai as genai
+import asyncio
 
-app = Flask(__name__)
-CORS(app)  # Enable CORS to allow requests from your React frontend
+class File:
+    def __init__(self, file_path: str, timestamp: str, display_name: str = None):
+        self.file_path = file_path
+        if display_name:
+            self.display_name = display_name
+        self.timestamp = timestamp
+    def set_response(self, response):
+       self.response = response
+
+app = Quart(__name__)
+app = cors(app, allow_origin="*")  # Enable CORS to allow requests from your React frontend
 
 UPLOAD_FOLDER = 'uploads/'
-PROCESSED_FOLDER = 'processed/' # To save processed images if needed
-GEMINI_API_URL = 'https://api.gemini.com/process_image'  # Replace with actual Gemini API URL
-GEMINI_API_KEY = 'your_gemini_api_key'  # Replace with your Gemini API key
-PROMPT = 'your_specific_prompt'  # The specific prompt for the Gemini API
+PROCESSED_FOLDER = 'processed/'  # To save processed images if needed
+
+# Configure Gemini API
+genai.configure(api_key=os.environ["API_KEY"])
 
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
@@ -18,8 +28,45 @@ if not os.path.exists(UPLOAD_FOLDER):
 if not os.path.exists(PROCESSED_FOLDER):
     os.makedirs(PROCESSED_FOLDER)
 
+class VideoGemini:
+    def __init__(self, verbose: bool = False, delete: bool = False):
+        self.model = genai.GenerativeModel(model_name="models/gemini-1.5-pro-latest")
+        self.frames = []
+        self.verbose = verbose
+        self.delete = delete
+        self.chat = self.model.start_chat(history=[])
+
+    def upload_frame(self, file: File):
+        if self.verbose:
+            print(file.file_path)
+            print(f'Uploading: {file.file_path}...')
+        response = genai.upload_file(path=file.file_path)
+        file.set_response(response)
+        if self.verbose:
+            print(f"Completed file upload")
+            if self.delete:
+                print(f"Deleting local file at {file.file_path}")
+        if self.delete:
+            os.remove(file.file_path)
+            file.file_path = ""
+        self.frames.append(file)
+
+    def _build_request(self, query: str = None):
+        request = []
+        if query:
+            request.append(query)
+        for frame in self.frames:
+            request.append(frame.timestamp)
+            request.append(frame.response)
+        return request
+    
+    async def get_response_async(self, query: str = None):
+        request = self._build_request(query)
+        response = await self.chat.send_message_async(request)
+        return response.text
+
 @app.route('/upload', methods=['POST'])
-def upload_file():
+async def upload_file():
     if 'image' not in request.files:
         return jsonify({"error": "No image part"}), 400
 
@@ -32,36 +79,22 @@ def upload_file():
         file.save(upload_path)
 
         # Process the file with Gemini API
-        processed_data = process_with_gemini(upload_path)
+        video_gemini = VideoGemini(verbose=True)
+        uploaded_file = File(file_path=upload_path)
+        video_gemini.upload_frame(uploaded_file)
 
-        # Save processed image if needed
+        # Get the response asynchronously
+        prompt = "your_specific_prompt"  # Replace with your actual prompt
+        processed_data = await video_gemini.get_response_async(query=prompt)
+
+        # Save processed image if needed (optional)
         processed_filename = os.path.join(PROCESSED_FOLDER, file.filename)
-        with open(processed_filename, 'wb') as processed_file:
+        with open(processed_filename, 'w') as processed_file:
             processed_file.write(processed_data)
 
-        return jsonify({"message": "File uploaded and processed successfully"}), 200
+        return jsonify({"message": "File uploaded and processed successfully", "response": processed_data}), 200
     except Exception as e:
         return jsonify({"error": f"Failed to save and process file: {e}"}), 500
-
-def process_with_gemini(image_path):
-    """
-    Process the image with the Gemini API.
-
-    :param image_path: Path to the image to be processed.
-    :return: Processed image data.
-    """
-    with open(image_path, 'rb') as image_file:
-        files = {'image': image_file}
-        data = {'prompt': PROMPT}
-        headers = {'Authorization': f'Bearer {GEMINI_API_KEY}'}  # Add your authorization method if needed
-
-        response = requests.post(GEMINI_API_URL, files=files, data=data, headers=headers)
-
-        if response.status_code != 200:
-            raise Exception(f"Failed to process image with Gemini API: {response.text}")
-
-        # Assuming the response contains the processed image data directly
-        return response.content
 
 if __name__ == '__main__':
     app.run(port=5000, debug=True)

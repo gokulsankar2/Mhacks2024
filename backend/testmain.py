@@ -125,7 +125,7 @@ def analyze_distance_gemini(image):
     image_base64 = base64.b64encode(buffer).decode('utf-8')
 
     # Send the prompt and image to Gemini for analysis
-    response = gemini_api.analyze_image(prompt, image_base64)
+    response = genai.analyze_image(prompt, image_base64)
 
     # Extract the distance value from the response
     distance = response.get('distance', None)
