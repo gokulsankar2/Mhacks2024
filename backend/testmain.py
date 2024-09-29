@@ -105,7 +105,7 @@ def analyze_distance(image):
         {"distance": 5, "diopters": -3.00, "description": "Mild myopia"},
         {"distance": 3, "diopters": -4.50, "description": "Moderate myopia"},
         {"distance": 1, "diopters": -7.00, "description": "High myopia"}
-    ]
+    ]   
     chosen_level = random.choice(myopia_levels)
     return chosen_level["distance"]
 
