@@ -52,9 +52,9 @@ def analyze_distance(image):
     return distance
 
 def blur_image(image):
-    kernel_size = 0
+    kernel_size = 25
     # Use replicated border method
-    blurred = np.zeros_like[image]
+    blurred = np.zeros_like(image)
     mask = True
     blurred_region = cv2.GaussianBlur(image, (kernel_size, kernel_size), 0, borderType=cv2.BORDER_REPLICATE)
     blurred[mask] = blurred_region[mask]
