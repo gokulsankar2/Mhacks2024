@@ -16,4 +16,8 @@ export default defineMessages({
     id: `${scope}.features`,
     defaultMessage: 'Features',
   },
+  captures: {
+    id: `${scope}.captures`,
+    defaultMessage: 'Captures',
+  }
 });
