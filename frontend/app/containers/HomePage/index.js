@@ -1,4 +1,4 @@
-import React, { useEffect, memo, useRef } from 'react';
+import React, { useEffect, memo, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import { Helmet } from 'react-helmet';
 import { FormattedMessage } from 'react-intl';
@@ -38,12 +38,14 @@ export function HomePage({
   onChangeUsername,
 }) {
   const videoRef = useRef(null);
+  const mediaRecorderRef = useRef(null);
+  const [recording, setRecording] = useState(false);
+  const [recordedChunks, setRecordedChunks] = useState([]);
 
   useInjectReducer({ key, reducer });
   useInjectSaga({ key, saga });
 
   useEffect(() => {
-    // Request access to the user's camera
     async function initCamera() {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: true });
@@ -54,25 +56,8 @@ export function HomePage({
         console.error('Error accessing camera:', err);
       }
     }
+    initCamera();
 
-    const button = document.createElement("button");
-
-    // Set the text content of the button
-    button.textContent = "Start recording";
-
-    // Add an event listener to handle clicks
-    button.addEventListener("click", function() {
-      // Code to execute when the button is clicked
-      alert("Button clicked!");
-      initCamera();
-    });
-
-    // Append the button to the document body
-    document.body.appendChild(button);
-
-   
-
-    // Clean up function
     return () => {
       if (videoRef.current && videoRef.current.srcObject) {
         const stream = videoRef.current.srcObject;
@@ -82,8 +67,41 @@ export function HomePage({
     };
   }, []);
 
+  const handleStartRecording = () => {
+    const stream = videoRef.current.srcObject;
+    mediaRecorderRef.current = new MediaRecorder(stream, { mimeType: 'video/webm' });
+
+    mediaRecorderRef.current.ondataavailable = (event) => {
+      if (event.data.size > 0) {
+        setRecordedChunks((prev) => [...prev, event.data]);
+      }
+    };
+
+    mediaRecorderRef.current.start();
+    setRecording(true);
+  };
+
+  const handleStopRecording = () => {
+    mediaRecorderRef.current.stop();
+    setRecording(false);
+  };
+
+  const handleSaveVideo = () => {
+    if (recordedChunks.length) {
+      const blob = new Blob(recordedChunks, { type: 'video/webm' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      document.body.appendChild(a);
+      a.style = 'display: none';
+      a.href = url;
+      a.download = 'recorded_video.webm'; // You can suggest a filename here
+      a.click();
+      window.URL.revokeObjectURL(url);
+      setRecordedChunks([]);
+    }
+  };
+
   useEffect(() => {
-    // When initial state username is not null, submit the form to load repos
     if (username && username.trim().length > 0) onSubmitForm();
   }, [username]);
 
@@ -130,6 +148,20 @@ export function HomePage({
               />
             </label>
           </Form>
+          <div style={{ textAlign: 'center', margin: '20px 0' }}>
+            {recording ? (
+              <button onClick={handleStopRecording} style={{ backgroundColor: 'blue', color: 'white', padding: '10px 20px', margin: '0 10px' }}>
+                Stop Recording
+              </button>
+            ) : (
+              <button onClick={handleStartRecording} style={{ backgroundColor: 'blue', color: 'white', padding: '10px 20px', margin: '0 10px' }}>
+                Start Recording
+              </button>
+            )}
+            <button onClick={handleSaveVideo} disabled={recording} style={{ backgroundColor: 'blue', color: 'white', padding: '10px 20px', margin: '0 10px' }}>
+              Save Video
+            </button>
+          </div>
           <video ref={videoRef} autoPlay style={{ width: '100%', height: 'auto' }} />
           <ReposList {...reposListProps} />
         </Section>
