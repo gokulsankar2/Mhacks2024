@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Result</title>
+    <style>
+        .image-container {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+        }
+        .image-container img {
+            max-width: 45%;  /* Adjust the size as needed */
+            height: auto;
+            border: 1px solid #ddd;  /* Add border for better visual separation */
+            margin: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Image Analysis Result</h1>
+    <div class="image-container">
+        <div>
+            <h2>Original Image</h2>
+            <img src="data:image/png;base64,{{ original_image }}" alt="Original Image">
+        </div>
+        <div>
+            <h2>Blurred Image</h2>
+            <img src="data:image/png;base64,{{ blurred_image }}" alt="Blurred Image">
+            <p>Estimated Distance: {{ distance }} meters</p>
+        </div>
+    </div>
+    <a href="/">Process another image</a>
+</body>
+</html>
