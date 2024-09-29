@@ -89,20 +89,23 @@ export function HomePage({
   const handleUpload = async (blob) => {
     const data = new FormData();
     data.append('video', blob, 'recorded_video.webm');
-
+  
     try {
-      const response = await fetch('http://localhost:3000/upload', {
+      const response = await fetch('http://localhost:5000/upload', {
         method: 'POST',
         body: data,
       });
-
+  
       if (response.ok) {
         alert('Video uploaded successfully!');
       } else {
+        const errorMessage = await response.text();
         alert('Video upload failed.');
+        console.error('Error: ', errorMessage);
       }
     } catch (error) {
-      console.error('Error uploading video:', error);
+      alert('Video upload failed.');
+      console.error('Error: ', error);
     }
   };
 
