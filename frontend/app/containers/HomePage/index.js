@@ -86,17 +86,30 @@ export function HomePage({
     setRecording(false);
   };
 
+  const handleUpload = async (blob) => {
+    const data = new FormData();
+    data.append('video', blob, 'recorded_video.webm');
+
+    try {
+      const response = await fetch('http://localhost:3000/upload', {
+        method: 'POST',
+        body: data,
+      });
+
+      if (response.ok) {
+        alert('Video uploaded successfully!');
+      } else {
+        alert('Video upload failed.');
+      }
+    } catch (error) {
+      console.error('Error uploading video:', error);
+    }
+  };
+
   const handleSaveVideo = () => {
     if (recordedChunks.length) {
       const blob = new Blob(recordedChunks, { type: 'video/webm' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      document.body.appendChild(a);
-      a.style = 'display: none';
-      a.href = url;
-      a.download = 'recorded_video.webm'; // You can suggest a filename here
-      a.click();
-      window.URL.revokeObjectURL(url);
+      handleUpload(blob);  // Upload the blob to the server
       setRecordedChunks([]);
     }
   };
