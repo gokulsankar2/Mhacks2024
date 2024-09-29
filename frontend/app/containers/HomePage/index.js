@@ -38,9 +38,8 @@ export function HomePage({
   onChangeUsername,
 }) {
   const videoRef = useRef(null);
-  const mediaRecorderRef = useRef(null);
-  const [recording, setRecording] = useState(false);
-  const [recordedChunks, setRecordedChunks] = useState([]);
+  const [capturing, setCapturing] = useState(false);
+  const intervalRef = useRef(null);
 
   useInjectReducer({ key, reducer });
   useInjectSaga({ key, saga });
@@ -59,6 +58,9 @@ export function HomePage({
     initCamera();
 
     return () => {
+      if (intervalRef.current !== null) {
+        clearInterval(intervalRef.current);
+      }
       if (videoRef.current && videoRef.current.srcObject) {
         const stream = videoRef.current.srcObject;
         const tracks = stream.getTracks();
@@ -67,53 +69,51 @@ export function HomePage({
     };
   }, []);
 
-  const handleStartRecording = () => {
-    const stream = videoRef.current.srcObject;
-    mediaRecorderRef.current = new MediaRecorder(stream, { mimeType: 'video/webm' });
-
-    mediaRecorderRef.current.ondataavailable = (event) => {
-      if (event.data.size > 0) {
-        setRecordedChunks((prev) => [...prev, event.data]);
-      }
-    };
-
-    mediaRecorderRef.current.start();
-    setRecording(true);
+  const handleStartCapturing = () => {
+    setCapturing(true);
+    intervalRef.current = setInterval(takePhotoAndUpload, 1000);
   };
 
-  const handleStopRecording = () => {
-    mediaRecorderRef.current.stop();
-    setRecording(false);
+  const handleStopCapturing = () => {
+    setCapturing(false);
+    clearInterval(intervalRef.current);
+    intervalRef.current = null;
+  };
+
+  const takePhotoAndUpload = async () => {
+    if (!videoRef.current) return;
+
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d');
+    canvas.width = videoRef.current.videoWidth;
+    canvas.height = videoRef.current.videoHeight;
+
+    context.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+
+    canvas.toBlob(async (blob) => {
+      if (blob) {
+        await handleUpload(blob);
+      }
+    }, 'image/jpeg');
   };
 
   const handleUpload = async (blob) => {
     const data = new FormData();
-    data.append('video', blob, 'recorded_video.webm');
-  
+    const filename = `photo_${Date.now()}.jpg`;
+    data.append('image', blob, filename);
+
     try {
       const response = await fetch('http://localhost:5000/upload', {
         method: 'POST',
         body: data,
       });
-  
-      if (response.ok) {
-        alert('Video uploaded successfully!');
-      } else {
+
+      if (!response.ok) {
         const errorMessage = await response.text();
-        alert('Video upload failed.');
         console.error('Error: ', errorMessage);
       }
     } catch (error) {
-      alert('Video upload failed.');
       console.error('Error: ', error);
-    }
-  };
-
-  const handleSaveVideo = () => {
-    if (recordedChunks.length) {
-      const blob = new Blob(recordedChunks, { type: 'video/webm' });
-      handleUpload(blob);  // Upload the blob to the server
-      setRecordedChunks([]);
     }
   };
 
@@ -165,18 +165,15 @@ export function HomePage({
             </label>
           </Form>
           <div style={{ textAlign: 'center', margin: '20px 0' }}>
-            {recording ? (
-              <button onClick={handleStopRecording} style={{ backgroundColor: 'blue', color: 'white', padding: '10px 20px', margin: '0 10px' }}>
-                Stop Recording
+            {capturing ? (
+              <button onClick={handleStopCapturing} style={{ backgroundColor: 'blue', color: 'white', padding: '10px 20px', margin: '0 10px' }}>
+                Stop
               </button>
             ) : (
-              <button onClick={handleStartRecording} style={{ backgroundColor: 'blue', color: 'white', padding: '10px 20px', margin: '0 10px' }}>
-                Start Recording
+              <button onClick={handleStartCapturing} style={{ backgroundColor: 'blue', color: 'white', padding: '10px 20px', margin: '0 10px' }}>
+                Start Capturing
               </button>
             )}
-            <button onClick={handleSaveVideo} disabled={recording} style={{ backgroundColor: 'blue', color: 'white', padding: '10px 20px', margin: '0 10px' }}>
-              Save Video
-            </button>
           </div>
           <video ref={videoRef} autoPlay style={{ width: '100%', height: 'auto' }} />
           <ReposList {...reposListProps} />
